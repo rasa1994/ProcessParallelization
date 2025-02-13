@@ -1,0 +1,2 @@
+add_library(processppl ProcessParallelization.ixx)
+target_include_directories(processppl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
