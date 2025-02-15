@@ -1,17 +1,17 @@
-#include <iostream>
-#include <concepts>
-#include <array>
-#include <vector>
-#include <list>
-#include <thread>
-#include <functional>
-#include <ranges>
-#include <algorithm>
-#include <any>
-#include <deque>
-#include <future>
-#include <queue>
 export module ProcessParallelization;
+import <iostream>;
+import <concepts>;
+import <array>;
+import <vector>;
+import <list>;
+import <thread>;
+import <functional>;
+import <ranges>;
+import <algorithm>;
+import <any>;
+import <deque>;
+import <future>;
+import <queue>;
 
 template <typename Type>
 concept Arrayable = requires(Type t)
