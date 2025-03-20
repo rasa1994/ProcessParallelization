@@ -24,7 +24,7 @@ int main()
     ThreadPool pool{};
     std::vector<int> vec;
 
-    std::ranges::copy(std::ranges::views::iota(1, 1'000'001), std::back_inserter(vec));
+    std::ranges::copy(std::ranges::views::iota(1, 1'001), std::back_inserter(vec));
 
     const auto leftSum = [&vec]
     {
@@ -49,4 +49,5 @@ int main()
         sum += std::any_cast<unsigned long long >(s.get());
 
     std::cout << sum << std::endl;
+    return 0;
 }

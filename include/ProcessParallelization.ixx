@@ -12,6 +12,8 @@ import <any>;
 import <deque>;
 import <future>;
 import <queue>;
+import <memory>;
+import <condition_variable>;
 
 template <typename Type>
 concept Arrayable = requires(Type t)
@@ -38,39 +40,57 @@ export
 
 		void push_front(Type&& value)
 		{
-			std::lock_guard<std::mutex> lock(mutex);
-			deque.push_front(std::forward<Type&&>(value));
+			std::unique_lock lock(m_mutex);
+			m_deque.push_front(std::forward<Type&&>(value));
+			m_waitCondition.notify_one();
 		}
 
 		void push_back(Type&& value)
 		{
-		    std::lock_guard<std::mutex> lock(mutex);
-			deque.push_back(std::forward<Type&&>(value));
+		    std::unique_lock lock(m_mutex);
+			m_deque.push_back(std::forward<Type&&>(value));
+			m_waitCondition.notify_one();
 		}
 
 		bool pop_front(Type& value)
 		{
-			std::lock_guard<std::mutex> lock(mutex);
-			if (deque.empty())
+			std::unique_lock lock(m_mutex);
+			if (m_deque.empty())
 				return false;
-			value = std::move(deque.front());
-			deque.pop_front();
+			value = std::move(m_deque.front());
+			m_deque.pop_front();
 			return true;
 		}
 
 		bool pop_back(Type& value)
 		{
-			std::lock_guard<std::mutex> lock(mutex);
-			if (deque.empty())
+			std::unique_lock lock(m_mutex);
+			if (m_deque.empty())
 				return false;
-			value = std::move(deque.back());
-			deque.pop_back();
+			value = std::move(m_deque.back());
+			m_deque.pop_back();
 			return true;
 		}
 
+		void WaitNotEmpty()
+		{
+            std::unique_lock lock(m_mutex);
+            m_waitCondition.wait(lock, [this] { return !m_deque.empty() || m_terminate; });
+		}
+
+		void TerminateAll()
+		{
+			std::unique_lock lock(m_mutex);
+            m_terminate = true;
+			m_deque.clear();
+			m_waitCondition.notify_all();
+		}
+
 	private:
-		std::deque<Type> deque;
-		std::mutex mutex;
+        std::atomic_bool m_terminate{ false };
+		std::deque<Type> m_deque;
+		std::mutex m_mutex;
+		std::condition_variable m_waitCondition;
 	};
 
 	template <Arrayable T>
@@ -93,6 +113,7 @@ export
 		~ThreadPool()
 		{
 			running = false;
+			workQueue.TerminateAll();
 			std::ranges::for_each(threads, std::mem_fn(&std::jthread::join));
 		};
 
@@ -106,7 +127,6 @@ export
 		std::vector<std::jthread> threads;
 		ThreadSafeDeque<std::packaged_task<std::any()>> workQueue;
 		void WorkerThread();
-		std::mutex mutex;
 		std::atomic_bool running{ true };
 	};
 
@@ -141,7 +161,7 @@ void ThreadPool::WorkerThread()
 		}
 		else
 		{
-			std::this_thread::yield();
+            workQueue.WaitNotEmpty();
 		}
 	}
 }
